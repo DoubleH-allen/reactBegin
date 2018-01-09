@@ -59,9 +59,9 @@
 /******/ 	
 /******/ 	
 /******/ 	var hotApplyOnUpdate = true;
-/******/ 	var hotCurrentHash = "50a5348aa56bc6b75265"; // eslint-disable-line no-unused-vars
+/******/ 	var hotCurrentHash = "6b28688659cc316e1495"; // eslint-disable-line no-unused-vars
 /******/ 	var hotCurrentModuleData = {};
-/******/ 	var hotMainModule = true; // eslint-disable-line no-unused-vars
+/******/ 	var hotCurrentChildModule; // eslint-disable-line no-unused-vars
 /******/ 	var hotCurrentParents = []; // eslint-disable-line no-unused-vars
 /******/ 	var hotCurrentParentsTemp = []; // eslint-disable-line no-unused-vars
 /******/ 	
@@ -73,14 +73,16 @@
 /******/ 				if(installedModules[request]) {
 /******/ 					if(installedModules[request].parents.indexOf(moduleId) < 0)
 /******/ 						installedModules[request].parents.push(moduleId);
-/******/ 				} else hotCurrentParents = [moduleId];
+/******/ 				} else {
+/******/ 					hotCurrentParents = [moduleId];
+/******/ 					hotCurrentChildModule = request;
+/******/ 				}
 /******/ 				if(me.children.indexOf(request) < 0)
 /******/ 					me.children.push(request);
 /******/ 			} else {
 /******/ 				console.warn("[HMR] unexpected require(" + request + ") from disposed module " + moduleId);
 /******/ 				hotCurrentParents = [];
 /******/ 			}
-/******/ 			hotMainModule = false;
 /******/ 			return __webpack_require__(request);
 /******/ 		};
 /******/ 		var ObjectFactory = function ObjectFactory(name) {
@@ -96,34 +98,31 @@
 /******/ 			};
 /******/ 		};
 /******/ 		for(var name in __webpack_require__) {
-/******/ 			if(Object.prototype.hasOwnProperty.call(__webpack_require__, name)) {
+/******/ 			if(Object.prototype.hasOwnProperty.call(__webpack_require__, name) && name !== "e") {
 /******/ 				Object.defineProperty(fn, name, ObjectFactory(name));
 /******/ 			}
 /******/ 		}
-/******/ 		Object.defineProperty(fn, "e", {
-/******/ 			enumerable: true,
-/******/ 			value: function(chunkId) {
-/******/ 				if(hotStatus === "ready")
-/******/ 					hotSetStatus("prepare");
-/******/ 				hotChunksLoading++;
-/******/ 				return __webpack_require__.e(chunkId).then(finishChunkLoading, function(err) {
-/******/ 					finishChunkLoading();
-/******/ 					throw err;
-/******/ 				});
+/******/ 		fn.e = function(chunkId) {
+/******/ 			if(hotStatus === "ready")
+/******/ 				hotSetStatus("prepare");
+/******/ 			hotChunksLoading++;
+/******/ 			return __webpack_require__.e(chunkId).then(finishChunkLoading, function(err) {
+/******/ 				finishChunkLoading();
+/******/ 				throw err;
+/******/ 			});
 /******/ 	
-/******/ 				function finishChunkLoading() {
-/******/ 					hotChunksLoading--;
-/******/ 					if(hotStatus === "prepare") {
-/******/ 						if(!hotWaitingFilesMap[chunkId]) {
-/******/ 							hotEnsureUpdateChunk(chunkId);
-/******/ 						}
-/******/ 						if(hotChunksLoading === 0 && hotWaitingFiles === 0) {
-/******/ 							hotUpdateDownloaded();
-/******/ 						}
+/******/ 			function finishChunkLoading() {
+/******/ 				hotChunksLoading--;
+/******/ 				if(hotStatus === "prepare") {
+/******/ 					if(!hotWaitingFilesMap[chunkId]) {
+/******/ 						hotEnsureUpdateChunk(chunkId);
+/******/ 					}
+/******/ 					if(hotChunksLoading === 0 && hotWaitingFiles === 0) {
+/******/ 						hotUpdateDownloaded();
 /******/ 					}
 /******/ 				}
 /******/ 			}
-/******/ 		});
+/******/ 		};
 /******/ 		return fn;
 /******/ 	}
 /******/ 	
@@ -135,7 +134,7 @@
 /******/ 			_selfAccepted: false,
 /******/ 			_selfDeclined: false,
 /******/ 			_disposeHandlers: [],
-/******/ 			_main: hotMainModule,
+/******/ 			_main: hotCurrentChildModule !== moduleId,
 /******/ 	
 /******/ 			// Module API
 /******/ 			active: true,
@@ -188,7 +187,7 @@
 /******/ 			//inherit from previous dispose call
 /******/ 			data: hotCurrentModuleData[moduleId]
 /******/ 		};
-/******/ 		hotMainModule = true;
+/******/ 		hotCurrentChildModule = undefined;
 /******/ 		return hot;
 /******/ 	}
 /******/ 	
@@ -226,7 +225,6 @@
 /******/ 				hotSetStatus("idle");
 /******/ 				return null;
 /******/ 			}
-/******/ 	
 /******/ 			hotRequestedFilesMap = {};
 /******/ 			hotWaitingFilesMap = {};
 /******/ 			hotAvailableFilesMap = update.c;
@@ -633,7 +631,9 @@
 /******/ 		}
 /******/ 	
 /******/ 		hotSetStatus("idle");
-/******/ 		return Promise.resolve(outdatedModules);
+/******/ 		return new Promise(function(resolve) {
+/******/ 			resolve(outdatedModules);
+/******/ 		});
 /******/ 	}
 /******/
 /******/ 	// The module cache
@@ -643,9 +643,9 @@
 /******/ 	function __webpack_require__(moduleId) {
 /******/
 /******/ 		// Check if module is in cache
-/******/ 		if(installedModules[moduleId])
+/******/ 		if(installedModules[moduleId]) {
 /******/ 			return installedModules[moduleId].exports;
-/******/
+/******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = installedModules[moduleId] = {
 /******/ 			i: moduleId,
@@ -1587,9 +1587,11 @@ module.exports = checkPropTypes;
 
 
 var React = __webpack_require__(4);
+console.log(React);
 var ReactDOM = __webpack_require__(27);
 var AppComponent = __webpack_require__(16);
-ReactDOM.render(React.createElement(AppComponent, null), document.getElementById('content'));
+// var AppComponent = <h1>hello</h1>;
+ReactDOM.render(React.createElement(AppComponent, { name: 'allen' }), document.getElementById('content'));
 
 /***/ }),
 /* 15 */
@@ -1656,20 +1658,47 @@ if(true) {
 "use strict";
 
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
 var React = __webpack_require__(4);
-var test = React.createClass({
-    displayName: 'test',
+// es6 write
 
-    render: function render() {
-        return React.createElement(
-            'div',
-            null,
-            'React+Webpack+ES6\u4ECE\u73AF\u5883\u642D\u5EFA\u5230HelloWorld'
-        );
+var Test = function (_React$Component) {
+  _inherits(Test, _React$Component);
+
+  function Test() {
+    _classCallCheck(this, Test);
+
+    return _possibleConstructorReturn(this, (Test.__proto__ || Object.getPrototypeOf(Test)).apply(this, arguments));
+  }
+
+  _createClass(Test, [{
+    key: 'render',
+    value: function render() {
+      return React.createElement(
+        'div',
+        null,
+        'Hello div, ',
+        this.props.name
+      );
     }
-});
+  }]);
 
-module.exports = test;
+  return Test;
+}(React.Component);
+// fuc wirte
+// function Test(props){
+// 	return <div>hello div ,{props.name}</div>
+// }
+
+
+module.exports = Test;
 
 /***/ }),
 /* 17 */
